@@ -1,4 +1,4 @@
-﻿namespace Classlib;
+﻿namespace EasyScripting;
 
 /// <summary>
 /// Hello, I am documented!

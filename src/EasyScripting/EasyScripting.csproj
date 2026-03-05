@@ -7,18 +7,18 @@
   </PropertyGroup>
 
   <PropertyGroup Label="Package Metadata">
-    <!-- <PackageId></PackageId> -->
-    <!-- <Description></Description> -->
+    <PackageId>LoganBussell.EasyScripting</PackageId>
+    <Description>Scripting helper library for .NET file-based apps</Description>
     <!-- <PackageReleaseNotes></PackageReleaseNotes> -->
     <PackageReadmeFile>README.md</PackageReadmeFile>
 
-    <!-- <PackageProjectUrl></PackageProjectUrl> -->
-    <!-- <RepositoryUrl></RepositoryUrl> -->
+    <PackageProjectUrl>https://github.com/lbussell/EasyScripting</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/lbussell/EasyScripting</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
 
     <!-- Add tags to help users find your package in search results.
       This should be a semicolon-delimited list of tags. -->
-    <!-- <PackageTags></PackageTags> -->
+    <PackageTags>scripting;dotnet;file-based-apps</PackageTags>
 
     <!-- Use a 128x128 PNG with transparent background. -->
     <!-- <PackageIcon></PackageIcon> -->
