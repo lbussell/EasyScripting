@@ -11,15 +11,19 @@
 #:package Spectre.Console@0.54.1-alpha.0.68
 #:project ../src/EasyScripting/EasyScripting.csproj
 
-using System.Text;
 using System.Text.RegularExpressions;
-using CliWrap;
-using CliWrap.Buffered;
 using EasyScripting;
 using Spectre.Console;
 
 var git = CliWrapper.Create("git");
 var gh = CliWrapper.Create("gh");
+
+var statusResult = await git.RunAsync("status --porcelain");
+if (!string.IsNullOrWhiteSpace(statusResult.StandardOutput))
+{
+    Prompt.Error("Working tree is not clean. Commit or stash your changes first.");
+    return 1;
+}
 
 Prompt.Info("Checking GitHub CLI authentication...");
 await gh.RunAsync("auth status");
@@ -45,13 +49,6 @@ if (!IsValidSemVer(version))
 var tag = $"v{version}";
 
 Prompt.Info($"Preparing release [green]{Markup.Escape(tag)}[/]");
-
-var statusResult = await git.RunAsync("status --porcelain");
-if (!string.IsNullOrWhiteSpace(statusResult.StandardOutput))
-{
-    Prompt.Error("Working tree is not clean. Commit or stash your changes first.");
-    return 1;
-}
 
 var tagResult = await git.RunAsync($"tag --list {tag}");
 if (!string.IsNullOrWhiteSpace(tagResult.StandardOutput))
