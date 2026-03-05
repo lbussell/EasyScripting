@@ -7,12 +7,14 @@
 // Usage: dotnet run scripts/Release.cs
 
 #:package CliWrap@3.10.0
-#:package Spectre.Console@0.54.1-alpha.0.31
+#:package Spectre.Console@0.54.1-alpha.0.68
+#:project ../src/EasyScripting/EasyScripting.csproj
 
 using System.Text;
 using System.Text.RegularExpressions;
 using CliWrap;
 using CliWrap.Buffered;
+using EasyScripting;
 using Spectre.Console;
 
 var git = new CliWrapper("git");
@@ -72,57 +74,3 @@ return 0;
 
 static bool IsValidSemVer(string version) =>
     Regex.IsMatch(version, @"^\d+\.\d+\.\d+(-[0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*)?(\+[0-9A-Za-z\-]+(\.[0-9A-Za-z\-]+)*)?$");
-
-#region Helpers
-internal class CliWrapper
-{
-    private readonly string _commandName;
-    private readonly Command _command;
-
-    public CliWrapper(string command)
-    {
-        _commandName = command;
-        var stdOutPipe = PipeTarget.ToDelegate(line => AnsiConsole.MarkupLineInterpolated($"[dim][[stdout]] {line}[/]"));
-        var stdErrPipe = PipeTarget.ToDelegate(line => AnsiConsole.MarkupLineInterpolated($"[yellow][[stderr]] {line}[/]"));
-        _command = Cli.Wrap(command)
-            .WithStandardOutputPipe(stdOutPipe)
-            .WithStandardErrorPipe(stdErrPipe)
-            .WithValidation(CommandResultValidation.ZeroExitCode);
-    }
-
-    public async Task<BufferedCommandResult> RunWithConfirmationAsync(
-        string arguments,
-        string? standardInput = null,
-        CancellationToken cancellationToken = default
-    )
-    {
-        var commandString = Markup.Escape($"{_commandName} {arguments}");
-        return !Prompt.Confirm($"Run `[blue]{commandString}[/]`?")
-            ? throw new OperationCanceledException("User aborted the operation.")
-            : await RunAsync(arguments, standardInput, cancellationToken);
-    }
-
-    public async Task<BufferedCommandResult> RunAsync(
-        string arguments,
-        string? standardInput = null,
-        CancellationToken cancellationToken = default
-    )
-    {
-        var commandString = Markup.Escape($"{_commandName} {arguments}");
-        var cmd = _command.WithArguments(arguments);
-        AnsiConsole.MarkupLineInterpolated($"[blue][[exec]] {commandString}[/]");
-        if (standardInput is not null) cmd = cmd.WithStandardInputPipe(PipeSource.FromString(standardInput));
-        return await cmd.ExecuteBufferedAsync(Encoding.UTF8, Encoding.UTF8, cancellationToken);
-    }
-}
-
-internal static class Prompt
-{
-    public static void Info(string message) => AnsiConsole.MarkupLine($"[green][[info]][/] {message}");
-    public static void Success(string message) => AnsiConsole.MarkupLine($"[green][[success]][/] {message}");
-    public static void Error(string message) => AnsiConsole.MarkupLine($"[red][[error]][/] {message}");
-    public static void Warning(string message) => AnsiConsole.MarkupLine($"[yellow][[warning]][/] {message}");
-    public static bool Confirm(string message) => AnsiConsole.Confirm($"[purple][[confirm]][/] {message}");
-    public static string Ask(string message) => AnsiConsole.Prompt(new TextPrompt<string>(message).PromptStyle("blue"));
-}
-#endregion

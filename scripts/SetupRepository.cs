@@ -10,12 +10,14 @@
 // Usage: dotnet run scripts/SetupRepository.cs
 
 #:package CliWrap@3.10.0
-#:package Spectre.Console@0.54.1-alpha.0.31
+#:package Spectre.Console@0.54.1-alpha.0.68
+#:project ../src/EasyScripting/EasyScripting.csproj
 
 using System.Text;
 using System.Text.RegularExpressions;
 using CliWrap;
 using CliWrap.Buffered;
+using EasyScripting;
 using Spectre.Console;
 
 AnsiConsole.WriteLine();
@@ -95,15 +97,6 @@ static async Task RunEditRepoCommandAsync(string owner, string repo)
         "--enable-merge-commit=false"
     ]);
     Prompt.Success("Wikis, discussions, and merge commit disabled.");
-}
-
-internal static class Prompt
-{
-    public static bool Confirm(string message) => AnsiConsole.Confirm(message);
-    public static string Ask(string message) => AnsiConsole.Prompt(new TextPrompt<string>(message).PromptStyle("blue"));
-    public static void Success(string message) => AnsiConsole.MarkupLine($"[green]✓[/] {message}");
-    public static void Skip() => AnsiConsole.MarkupLine("[yellow]Skipped.[/]");
-    public static void Error(string message) => AnsiConsole.MarkupLine($"[red]Error:[/] {message}");
 }
 
 internal static class GitHubCli

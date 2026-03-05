@@ -38,6 +38,11 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
+  <ItemGroup Label="Dependencies">
+    <PackageReference Include="CliWrap" />
+    <PackageReference Include="Spectre.Console" />
+  </ItemGroup>
+
   <ItemGroup Label="Package Content">
     <None Include="../../README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
