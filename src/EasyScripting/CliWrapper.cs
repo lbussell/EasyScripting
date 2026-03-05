@@ -9,28 +9,38 @@ using Spectre.Console;
 namespace EasyScripting;
 
 /// <summary>
-/// A convenience wrapper around a CLI command that pipes output to <see cref="AnsiConsole"/>
+/// A convenience wrapper around a CLI command that pipes output to an <see cref="IAnsiConsole"/>
 /// and supports confirmation prompts before execution.
 /// </summary>
 public class CliWrapper
 {
     private readonly string _commandName;
     private readonly Command _command;
+    private readonly IAnsiConsole _ansiConsole;
+
+    /// <summary>
+    /// Creates a new <see cref="CliWrapper"/> for the specified CLI command using
+    /// the default <see cref="AnsiConsole.Console"/>.
+    /// </summary>
+    /// <param name="command">The command name or path (e.g. "git", "gh").</param>
+    public static CliWrapper Create(string command) => new(command, AnsiConsole.Console);
 
     /// <summary>
     /// Creates a new <see cref="CliWrapper"/> for the specified CLI command.
     /// </summary>
     /// <param name="command">The command name or path (e.g. "git", "gh").</param>
-    public CliWrapper(string command)
+    /// <param name="ansiConsole">The <see cref="IAnsiConsole"/> instance to use for output.</param>
+    public CliWrapper(string command, IAnsiConsole ansiConsole)
     {
         _commandName = command;
+        _ansiConsole = ansiConsole;
 
         PipeTarget stdOutPipe = PipeTarget.ToDelegate(line =>
-            AnsiConsole.MarkupLineInterpolated($"[dim][[stdout]] {line}[/]")
+            _ansiConsole.MarkupLineInterpolated($"[dim][[stdout]] {line}[/]")
         );
 
         PipeTarget stdErrPipe = PipeTarget.ToDelegate(line =>
-            AnsiConsole.MarkupLineInterpolated($"[yellow][[stderr]] {line}[/]")
+            _ansiConsole.MarkupLineInterpolated($"[yellow][[stderr]] {line}[/]")
         );
 
         _command = Cli.Wrap(command)
@@ -54,7 +64,7 @@ public class CliWrapper
     )
     {
         string commandString = Markup.Escape($"{_commandName} {arguments}");
-        return !Prompt.Confirm($"Run `[blue]{commandString}[/]`?")
+        return !_ansiConsole.Confirm($"Run [blue]{commandString}[/]?")
             ? throw new OperationCanceledException("User aborted the operation.")
             : RunAsync(arguments, standardInput, cancellationToken);
     }
@@ -73,7 +83,7 @@ public class CliWrapper
     )
     {
         string commandString = Markup.Escape($"{_commandName} {arguments}");
-        AnsiConsole.MarkupLineInterpolated($"[blue][[exec]] {commandString}[/]");
+        _ansiConsole.MarkupLineInterpolated($"[blue][[exec]] {commandString}[/]");
         Command cmd = _command.WithArguments(arguments);
 
         if (standardInput is not null)

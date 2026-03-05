@@ -17,8 +17,8 @@ using CliWrap.Buffered;
 using EasyScripting;
 using Spectre.Console;
 
-var git = new CliWrapper("git");
-var gh = new CliWrapper("gh");
+var git = CliWrapper.Create("git");
+var gh = CliWrapper.Create("gh");
 
 Prompt.Info("Checking GitHub CLI authentication...");
 await gh.RunAsync("auth status");
