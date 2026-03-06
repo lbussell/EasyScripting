@@ -85,7 +85,7 @@ static async Task SetNugetUserSecretAsync(string owner, string repo)
     var nugetUser = Prompt.Ask("Enter your [green]NuGet.org username[/]:");
 
     await Shell($"gh secret set NUGET_USER --env production --repo {owner}/{repo}")
-        .Input(nugetUser).Confirm().RunAsync();
+        .WithStandardInput(nugetUser).Confirm().RunAsync();
 
     Prompt.Success("Secret [green]NUGET_USER[/] set.");
 }
