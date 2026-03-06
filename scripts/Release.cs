@@ -7,8 +7,6 @@
 //
 // Usage: dotnet run scripts/Release.cs
 
-#:package CliWrap@3.10.0
-#:package Spectre.Console@0.54.1-alpha.0.68
 #:project ../src/EasyScripting/EasyScripting.csproj
 
 using System.Text.RegularExpressions;

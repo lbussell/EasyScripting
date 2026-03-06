@@ -35,13 +35,8 @@ public class CliWrapper
         _commandName = command;
         _ansiConsole = ansiConsole;
 
-        PipeTarget stdOutPipe = PipeTarget.ToDelegate(line =>
-            _ansiConsole.MarkupLineInterpolated($"[dim][[stdout]] {line}[/]")
-        );
-
-        PipeTarget stdErrPipe = PipeTarget.ToDelegate(line =>
-            _ansiConsole.MarkupLineInterpolated($"[yellow][[stderr]] {line}[/]")
-        );
+        PipeTarget stdOutPipe = PipeTarget.ToDelegate(HandleStandardOutput);
+        PipeTarget stdErrPipe = PipeTarget.ToDelegate(HandleStandardError);
 
         _command = Cli.Wrap(command)
             .WithStandardOutputPipe(stdOutPipe)
@@ -91,4 +86,18 @@ public class CliWrapper
 
         return cmd.ExecuteBufferedAsync(Encoding.UTF8, Encoding.UTF8, cancellationToken);
     }
+
+    /// <summary>
+    /// Displays a single line emitted to standard output.
+    /// </summary>
+    /// <param name="line">The line of output text.</param>
+    private void HandleStandardOutput(string line) =>
+        _ansiConsole.MarkupLineInterpolated($"[dim]| {line}[/]");
+
+    /// <summary>
+    /// Displays a single line emitted to standard error.
+    /// </summary>
+    /// <param name="line">The line of error text.</param>
+    private void HandleStandardError(string line) =>
+        _ansiConsole.MarkupLineInterpolated($"[yellow]| {line}[/]");
 }

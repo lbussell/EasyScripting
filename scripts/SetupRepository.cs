@@ -10,38 +10,36 @@
 //
 // Usage: dotnet run scripts/SetupRepository.cs
 
-#:package CliWrap@3.10.0
-#:package Spectre.Console@0.54.1-alpha.0.68
 #:project ../src/EasyScripting/EasyScripting.csproj
 
-using System.Text;
 using System.Text.RegularExpressions;
-using CliWrap;
-using CliWrap.Buffered;
 using EasyScripting;
 using Spectre.Console;
+
+var git = CliWrapper.Create("git");
+var gh = CliWrapper.Create("gh");
 
 AnsiConsole.WriteLine();
 (string? owner, string? repo) = await DetectGitHubRepoAsync();
 await EnsureGhAuthenticatedAsync();
-await RunEditRepoCommandAsync(owner, repo);
-await EnableReleaseImmutabilityAsync(owner, repo);
+await RunEditRepoCommandAsync(gh, owner, repo);
+await EnableReleaseImmutabilityAsync(gh, owner, repo);
 Prompt.Success("Repository settings configured.");
 
 async Task<(string Owner, string Repo)> DetectGitHubRepoAsync()
 {
-    BufferedCommandResult result = await Cli.Wrap("git")
-        .WithArguments("remote get-url origin")
-        .WithValidation(CommandResultValidation.None)
-        .ExecuteBufferedAsync();
-
-    if (result.ExitCode != 0)
+    string url;
+    try
+    {
+        var result = await git.RunAsync("remote get-url origin");
+        url = result.StandardOutput.Trim();
+    }
+    catch (CliWrap.Exceptions.CommandExecutionException)
     {
         Prompt.Error("Could not detect git remote. Are you in a git repository?");
         Environment.Exit(1);
+        return default;
     }
-
-    string url = result.StandardOutput.Trim();
     (string Owner, string Repo)? repo = ParseGitHubRepo(url);
 
     if (repo is null)
@@ -64,63 +62,35 @@ async Task<(string Owner, string Repo)> DetectGitHubRepoAsync()
 async Task EnsureGhAuthenticatedAsync()
 {
     AnsiConsole.MarkupLine("Checking GitHub CLI authentication...");
-    BufferedCommandResult result = await Cli.Wrap("gh")
-        .WithArguments("auth status")
-        .WithValidation(CommandResultValidation.None)
-        .ExecuteBufferedAsync();
-
-    if (result.ExitCode != 0)
+    try
+    {
+        await gh.RunAsync("auth status");
+    }
+    catch (CliWrap.Exceptions.CommandExecutionException)
     {
         Prompt.Error("The GitHub CLI is not authenticated. Run [blue]gh auth login[/] first.");
         Environment.Exit(1);
     }
 }
 
-static async Task EnableReleaseImmutabilityAsync(string owner, string repo)
+static async Task EnableReleaseImmutabilityAsync(CliWrapper gh, string owner, string repo)
 {
     AnsiConsole.WriteLine();
     AnsiConsole.MarkupLine("[bold]Enabling [green]release immutability[/][/]");
-    await GitHubCli.RunWithConfirmationAsync([
-        "api", "--method", "PATCH", $"repos/{owner}/{repo}",
-        "-f", "security_and_analysis[release_immutability][status]=enabled"
-    ]);
+    await gh.RunWithConfirmationAsync(
+        $"api --method PATCH repos/{owner}/{repo} -f security_and_analysis[release_immutability][status]=enabled"
+    );
     Prompt.Success("Release immutability enabled.");
 }
 
-static async Task RunEditRepoCommandAsync(string owner, string repo)
+static async Task RunEditRepoCommandAsync(CliWrapper gh, string owner, string repo)
 {
     AnsiConsole.WriteLine();
     AnsiConsole.MarkupLine("[bold]Disabling [green]wikis[/], [green]discussions[/], and [green]merge commit[/][/]");
-    await GitHubCli.RunWithConfirmationAsync([
-        "repo", "edit", $"{owner}/{repo}",
-        "--enable-wiki=false",
-        "--enable-discussions=false",
-        "--enable-merge-commit=false"
-    ]);
+    await gh.RunWithConfirmationAsync(
+        $"repo edit {owner}/{repo} --enable-wiki=false --enable-discussions=false --enable-merge-commit=false"
+    );
     Prompt.Success("Wikis, discussions, and merge commit disabled.");
-}
-
-internal static class GitHubCli
-{
-    private static readonly Command _gh = Cli.Wrap("gh");
-
-    public static async Task RunWithConfirmationAsync(string[] arguments, string? stdinText = null)
-    {
-        Command command = _gh.WithArguments(arguments).WithValidation(CommandResultValidation.ZeroExitCode);
-
-        string commandString = Markup.Escape(string.Join(' ', arguments));
-
-        if (stdinText is not null)
-            command = command.WithStandardInputPipe(PipeSource.FromString(stdinText));
-
-        if (!Prompt.Confirm($"Run `[blue]gh {commandString}[/]`?"))
-            throw new OperationCanceledException("User aborted the operation.");
-
-        BufferedCommandResult result = await command.ExecuteBufferedAsync(Encoding.UTF8, Encoding.UTF8);
-
-        if (!string.IsNullOrWhiteSpace(result.StandardError))
-            AnsiConsole.MarkupLine($"[yellow]{Markup.Escape(result.StandardError.Trim())}[/]");
-    }
 }
 
 partial class Program
