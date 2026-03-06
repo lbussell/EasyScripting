@@ -15,15 +15,13 @@
 using System.Text.RegularExpressions;
 using EasyScripting;
 using Spectre.Console;
-
-var git = CliWrapper.Create("git");
-var gh = CliWrapper.Create("gh");
+using static EasyScripting.CommandLine;
 
 AnsiConsole.WriteLine();
 (string? owner, string? repo) = await DetectGitHubRepoAsync();
 await EnsureGhAuthenticatedAsync();
-await RunEditRepoCommandAsync(gh, owner, repo);
-await EnableReleaseImmutabilityAsync(gh, owner, repo);
+await RunEditRepoCommandAsync(owner, repo);
+await EnableReleaseImmutabilityAsync(owner, repo);
 Prompt.Success("Repository settings configured.");
 
 async Task<(string Owner, string Repo)> DetectGitHubRepoAsync()
@@ -31,8 +29,7 @@ async Task<(string Owner, string Repo)> DetectGitHubRepoAsync()
     string url;
     try
     {
-        var result = await git.RunAsync("remote get-url origin");
-        url = result.StandardOutput.Trim();
+        url = await Shell("git remote get-url origin").Trim().Quiet().RunAsync();
     }
     catch (CliWrap.Exceptions.CommandExecutionException)
     {
@@ -64,7 +61,7 @@ async Task EnsureGhAuthenticatedAsync()
     AnsiConsole.MarkupLine("Checking GitHub CLI authentication...");
     try
     {
-        await gh.RunAsync("auth status");
+        await Shell("gh auth status").Quiet().RunAsync();
     }
     catch (CliWrap.Exceptions.CommandExecutionException)
     {
@@ -73,23 +70,21 @@ async Task EnsureGhAuthenticatedAsync()
     }
 }
 
-static async Task EnableReleaseImmutabilityAsync(CliWrapper gh, string owner, string repo)
+static async Task EnableReleaseImmutabilityAsync(string owner, string repo)
 {
     AnsiConsole.WriteLine();
     AnsiConsole.MarkupLine("[bold]Enabling [green]release immutability[/][/]");
-    await gh.RunWithConfirmationAsync(
-        $"api --method PATCH repos/{owner}/{repo} -f security_and_analysis[release_immutability][status]=enabled"
-    );
+    await Shell($"gh api --method PATCH repos/{owner}/{repo} -f security_and_analysis[release_immutability][status]=enabled")
+        .Confirm().RunAsync();
     Prompt.Success("Release immutability enabled.");
 }
 
-static async Task RunEditRepoCommandAsync(CliWrapper gh, string owner, string repo)
+static async Task RunEditRepoCommandAsync(string owner, string repo)
 {
     AnsiConsole.WriteLine();
     AnsiConsole.MarkupLine("[bold]Disabling [green]wikis[/], [green]discussions[/], and [green]merge commit[/][/]");
-    await gh.RunWithConfirmationAsync(
-        $"repo edit {owner}/{repo} --enable-wiki=false --enable-discussions=false --enable-merge-commit=false"
-    );
+    await Shell($"gh repo edit {owner}/{repo} --enable-wiki=false --enable-discussions=false --enable-merge-commit=false")
+        .Confirm().RunAsync();
     Prompt.Success("Wikis, discussions, and merge commit disabled.");
 }
 
