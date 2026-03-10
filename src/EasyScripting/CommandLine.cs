@@ -20,7 +20,8 @@ public static class CommandLine
     /// executable name; the remainder is passed as arguments.
     /// </param>
     public static CommandBuilder Shell(string commandLine) =>
-        new CommandBuilder { CommandLine = commandLine }
+        new CommandBuilder(commandLine)
             .OnStandardOutput(line => AnsiConsole.MarkupLineInterpolated($"[dim]| {line}[/]"))
-            .OnStandardError(line => AnsiConsole.MarkupLineInterpolated($"[yellow]| {line}[/]"));
+            .OnStandardError(line => AnsiConsole.MarkupLineInterpolated($"[yellow]| {line}[/]"))
+            .OnNonZeroExitCode(result => throw new CommandFailedException(commandLine, result));
 }

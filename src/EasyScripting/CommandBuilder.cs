@@ -13,16 +13,21 @@ namespace EasyScripting;
 /// Use <see cref="BeforeExecute"/>, <see cref="AfterExecute"/>, <see cref="OnStandardOutput"/>,
 /// and <see cref="OnStandardError"/> to add hooks, then call <see cref="RunAsync"/> to execute.
 /// </summary>
-public class CommandBuilder
+/// <param name="commandLine">
+/// The full command line to execute. The first whitespace-delimited token is the
+/// executable name; the remainder is passed as arguments.
+/// </param>
+public class CommandBuilder(string commandLine)
 {
     /// <summary>The full command line to execute (e.g. "git remote get-url origin").</summary>
-    public required string CommandLine { get; init; }
+    public string CommandLine { get; } = commandLine;
 
     private string? StandardInput { get; set; }
     private List<Func<CommandBuilder, CancellationToken, Task>> BeforeHooks { get; } = [];
-    private List<Func<string, string>> AfterHooks { get; } = [];
+    private List<Func<CommandResult, CommandResult>> AfterHooks { get; } = [];
     private List<Action<string>> StandardOutputHooks { get; } = [];
     private List<Action<string>> StandardErrorHooks { get; } = [];
+    private Action<CommandResult>? NonZeroExitCodeHandler { get; set; }
 
     /// <summary>Adds a hook that runs before command execution. Can throw to abort.</summary>
     public CommandBuilder BeforeExecute(Func<CommandBuilder, CancellationToken, Task> hook)
@@ -31,10 +36,20 @@ public class CommandBuilder
         return this;
     }
 
-    /// <summary>Adds a hook that transforms the captured standard output after execution.</summary>
-    public CommandBuilder AfterExecute(Func<string, string> hook)
+    /// <summary>Adds a hook that can inspect and transform the command result after execution.</summary>
+    public CommandBuilder AfterExecute(Func<CommandResult, CommandResult> hook)
     {
         AfterHooks.Add(hook);
+        return this;
+    }
+
+    /// <summary>
+    /// Sets a handler that is invoked when the command exits with a non-zero exit code.
+    /// Replaces any previously registered handler. Runs after all <see cref="AfterExecute"/> hooks.
+    /// </summary>
+    public CommandBuilder OnNonZeroExitCode(Action<CommandResult> handler)
+    {
+        NonZeroExitCodeHandler = handler;
         return this;
     }
 
@@ -82,7 +97,7 @@ public class CommandBuilder
 
         Command command = Cli.Wrap(executable)
             .WithArguments(arguments)
-            .WithValidation(CommandResultValidation.ZeroExitCode);
+            .WithValidation(CommandResultValidation.None);
 
         if (StandardOutputHooks.Count > 0 || StandardErrorHooks.Count > 0)
             AnsiConsole.MarkupLine($"[blue][[exec]] {Markup.Escape(CommandLine)}[/]");
@@ -120,11 +135,18 @@ public class CommandBuilder
             cancellationToken
         );
 
-        string output = result.StandardOutput;
+        CommandResult commandResult = new(
+            result.StandardOutput,
+            result.StandardError,
+            result.ExitCode
+        );
 
-        foreach (Func<string, string> hook in AfterHooks)
-            output = hook(output);
+        foreach (Func<CommandResult, CommandResult> hook in AfterHooks)
+            commandResult = hook(commandResult);
 
-        return output;
+        if (commandResult.ExitCode != 0)
+            NonZeroExitCodeHandler?.Invoke(commandResult);
+
+        return commandResult.StandardOutput;
     }
 }

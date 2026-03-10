@@ -26,17 +26,15 @@ Prompt.Success("Repository settings configured.");
 
 async Task<(string Owner, string Repo)> DetectGitHubRepoAsync()
 {
-    string url;
-    try
-    {
-        url = await Shell("git remote get-url origin").Trim().Quiet().RunAsync();
-    }
-    catch (CliWrap.Exceptions.CommandExecutionException)
-    {
-        Prompt.Error("Could not detect git remote. Are you in a git repository?");
-        Environment.Exit(1);
-        return default;
-    }
+    string url = await Shell("git remote get-url origin")
+        .Trim()
+        .Quiet()
+        .OnNonZeroExitCode(_ =>
+        {
+            Prompt.Error("Could not detect git remote. Are you in a git repository?");
+            Environment.Exit(1);
+        })
+        .RunAsync();
     (string Owner, string Repo)? repo = ParseGitHubRepo(url);
 
     if (repo is null)
@@ -59,15 +57,16 @@ async Task<(string Owner, string Repo)> DetectGitHubRepoAsync()
 async Task EnsureGhAuthenticatedAsync()
 {
     AnsiConsole.MarkupLine("Checking GitHub CLI authentication...");
-    try
-    {
-        await Shell("gh auth status").Quiet().RunAsync();
-    }
-    catch (CliWrap.Exceptions.CommandExecutionException)
-    {
-        Prompt.Error("The GitHub CLI is not authenticated. Run [blue]gh auth login[/] first.");
-        Environment.Exit(1);
-    }
+    await Shell("gh auth status")
+        .Quiet()
+        .OnNonZeroExitCode(_ =>
+        {
+            Prompt.Error(
+                "The GitHub CLI is not authenticated. Run [blue]gh auth login[/] first."
+            );
+            Environment.Exit(1);
+        })
+        .RunAsync();
 }
 
 static async Task EnableReleaseImmutabilityAsync(string owner, string repo)
